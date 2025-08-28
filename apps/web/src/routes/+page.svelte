@@ -18,6 +18,7 @@
   let error = $state<string | null>(null);
   let showBingo = $state(false);
   let gameOver = $state(false);
+  let confetti = $state<Array<{ left: number; size: number; delay: number; duration: number; color: string; rotate: number }>>([]);
 
   onMount(() => {
     const existing = loadBoard(BOARD_KEY);
@@ -48,6 +49,7 @@
     try {
       gameOver = false;
       showBingo = false;
+      confetti = [];
       const species = await fetchSpecies('http://localhost:8787', { lat, lng, topN });
       board = createBoard(species, size);
     } catch (e) {
@@ -64,8 +66,7 @@
     board = { ...board };
     if (hasBingo(board)) {
       gameOver = true;
-      showBingo = true;
-      setTimeout(() => (showBingo = false), 2200);
+      launchBingo();
     }
   }
 
@@ -99,6 +100,24 @@
     return false;
   }
 
+  function launchBingo() {
+    const colors = ['#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#14b8a6'];
+    const pieces: Array<{ left: number; size: number; delay: number; duration: number; color: string; rotate: number }> = [];
+    for (let i = 0; i < 140; i++) {
+      pieces.push({
+        left: Math.random() * 100,
+        size: 6 + Math.random() * 10,
+        delay: Math.random() * 600,
+        duration: 2600 + Math.random() * 1600,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rotate: Math.floor(Math.random() * 360)
+      });
+    }
+    confetti = pieces;
+    showBingo = true;
+    setTimeout(() => (showBingo = false), 4200);
+  }
+
   $effect(() => {
     document.title = 'BIMPO';
   });
@@ -108,8 +127,19 @@
   });
 </script>
 {#if showBingo}
-  <div class="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white px-4 py-2 rounded shadow-lg">
-    BIMPO! You got a bingo 🎉
+  <div class="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm">
+    <div class="absolute inset-0 overflow-hidden">
+      {#each confetti as p}
+        <span
+          class="absolute will-change-transform rounded-sm"
+          style={`left:${p.left}%; top:-10vh; width:${p.size}px; height:${p.size * 0.4}px; background:${p.color}; animation: fall ${p.duration}ms ease-out ${p.delay}ms forwards, spin ${Math.max(800, p.duration * 0.5)}ms linear ${p.delay}ms infinite; transform: rotate(${p.rotate}deg);`}
+        ></span>
+      {/each}
+    </div>
+    <div class="relative text-center select-none">
+      <div class="text-6xl md:text-8xl font-extrabold text-white drop-shadow-[0_8px_12px_rgba(0,0,0,.45)] animate-pop">BIMPO!</div>
+      <div class="mt-3 text-white/95 text-xl md:text-2xl animate-fade-up">You win! 🎉</div>
+    </div>
   </div>
 {/if}
 
@@ -175,3 +205,26 @@
     </div>
   {/if}
 </div>
+
+<style>
+  @keyframes fall {
+    from { top: -10vh; }
+    to { top: 110vh; }
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes pop {
+    0% { transform: scale(0.6); opacity: 0; }
+    40% { transform: scale(1.1); opacity: 1; }
+    60% { transform: scale(0.98); }
+    100% { transform: scale(1); }
+  }
+  @keyframes fade-up {
+    0% { opacity: 0; transform: translateY(12px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  .animate-pop { animation: pop 600ms cubic-bezier(.2,.9,.2,1) forwards; }
+  .animate-fade-up { animation: fade-up 700ms 120ms cubic-bezier(.2,.9,.2,1) forwards; }
+</style>
