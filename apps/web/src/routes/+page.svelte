@@ -6,7 +6,7 @@
   import { Label } from '$lib/components/ui/label';
   import Check from '@lucide/svelte/icons/check';
   import type { Board, BoardTile } from '$lib';
-  import { createBoard, fetchSpecies, loadBoard, saveBoard } from '$lib';
+  import { createBoard, fetchSpecies, loadBoard, saveBoard, clearBoard, hasBingo as checkBingo } from '$lib';
 
   const BOARD_KEY = 'bimpo-board';
   let board = $state<Board | null>(null);
@@ -70,35 +70,7 @@
     }
   }
 
-  function hasBingo(b: Board): boolean {
-    const n = b.size;
-    const t = b.tiles;
-    // rows
-    for (let r = 0; r < n; r++) {
-      let all = true;
-      for (let c = 0; c < n; c++) if (!t[r * n + c]?.checked) { all = false; break; }
-      if (all) return true;
-    }
-    // cols
-    for (let c = 0; c < n; c++) {
-      let all = true;
-      for (let r = 0; r < n; r++) if (!t[r * n + c]?.checked) { all = false; break; }
-      if (all) return true;
-    }
-    // main diag
-    {
-      let all = true;
-      for (let i = 0; i < n; i++) if (!t[i * (n + 1)]?.checked) { all = false; break; }
-      if (all) return true;
-    }
-    // anti diag
-    {
-      let all = true;
-      for (let i = 1; i <= n; i++) if (!t[i * (n - 1)]?.checked) { all = false; break; }
-      if (all) return true;
-    }
-    return false;
-  }
+  const hasBingo = (b: Board) => checkBingo(b);
 
   function launchBingo() {
     const colors = ['#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#14b8a6'];
@@ -125,6 +97,14 @@
   $effect(() => {
     if (board) saveBoard(BOARD_KEY, board);
   });
+
+  function resetBoard() {
+    clearBoard(BOARD_KEY);
+    board = null;
+    gameOver = false;
+    showBingo = false;
+    confetti = [];
+  }
 </script>
 {#if showBingo}
   <div class="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm">
@@ -143,43 +123,48 @@
   </div>
 {/if}
 
-<div class="mx-auto max-w-5xl p-4 space-y-6">
-  <h1 class="text-3xl font-bold tracking-tight">BIMPO</h1>
-
-  <Card>
-    <CardHeader>
-      <CardTitle>Generate a board</CardTitle>
-    </CardHeader>
-    <CardContent class="space-y-3">
-      <div class="grid grid-cols-2 gap-3">
-        <div class="space-y-1">
-          <Label for="lat">Latitude</Label>
-          <input id="lat" class="border rounded px-2 py-1 w-full" bind:value={lat} type="number" step="any" />
+{#if !board}
+  <div class="mx-auto max-w-3xl p-4 space-y-6 min-h-dvh grid content-start">
+    <h1 class="text-3xl font-bold tracking-tight">BIMPO</h1>
+    <Card>
+      <CardHeader>
+        <CardTitle>Create a board</CardTitle>
+      </CardHeader>
+      <CardContent class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <Label for="lat">Latitude</Label>
+            <input id="lat" class="border rounded px-2 py-1 w-full" bind:value={lat} type="number" step="any" />
+          </div>
+          <div class="space-y-1">
+            <Label for="lng">Longitude</Label>
+            <input id="lng" class="border rounded px-2 py-1 w-full" bind:value={lng} type="number" step="any" />
+          </div>
+          <div class="space-y-1">
+            <Label for="topN">Pool size (top N)</Label>
+            <input id="topN" class="border rounded px-2 py-1 w-full" bind:value={topN} type="number" min="5" max="100" />
+          </div>
+          <div class="space-y-1">
+            <Label for="size">Board size</Label>
+            <input id="size" class="border rounded px-2 py-1 w-full" bind:value={size} type="number" min="3" max="6" />
+          </div>
         </div>
-        <div class="space-y-1">
-          <Label for="lng">Longitude</Label>
-          <input id="lng" class="border rounded px-2 py-1 w-full" bind:value={lng} type="number" step="any" />
+        <div class="flex gap-2">
+          <Button variant="secondary" onclick={useGeolocation}>Use my location</Button>
+          <Button onclick={generate} disabled={loading}>{loading ? 'Generating...' : 'Generate Board'}</Button>
         </div>
-        <div class="space-y-1">
-          <Label for="topN">Pool size (top N)</Label>
-          <input id="topN" class="border rounded px-2 py-1 w-full" bind:value={topN} type="number" min="5" max="100" />
-        </div>
-        <div class="space-y-1">
-          <Label for="size">Board size</Label>
-          <input id="size" class="border rounded px-2 py-1 w-full" bind:value={size} type="number" min="3" max="6" />
-        </div>
-      </div>
-      <div class="flex gap-2">
-        <Button variant="secondary" onclick={useGeolocation}>Use my location</Button>
-        <Button onclick={generate} disabled={loading}>{loading ? 'Generating...' : 'Generate Board'}</Button>
-      </div>
-      {#if error}
-        <p class="text-red-600 text-sm">{error}</p>
-      {/if}
-    </CardContent>
-  </Card>
-
-  {#if board}
+        {#if error}
+          <p class="text-red-600 text-sm">{error}</p>
+        {/if}
+      </CardContent>
+    </Card>
+  </div>
+{:else}
+  <div class="min-h-dvh grid content-start p-2 md:p-4">
+    <div class="flex items-center justify-between mb-2">
+      <h1 class="text-2xl font-bold tracking-tight">BIMPO</h1>
+      <Button variant="outline" onclick={resetBoard}>Clear board</Button>
+    </div>
     <div class="grid gap-[2px] bg-border rounded-md overflow-hidden outline outline-2 outline-border" style={`grid-template-columns: repeat(${board.size}, minmax(0, 1fr));`}>
       {#each board.tiles as tile}
         <div
@@ -203,8 +188,8 @@
         </div>
       {/each}
     </div>
-  {/if}
-</div>
+  </div>
+{/if}
 
 <style>
   @keyframes fall {

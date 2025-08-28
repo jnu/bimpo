@@ -84,3 +84,37 @@ export function loadBoard(key: string): Board | null {
     return null;
   }
 }
+
+export function clearBoard(key: string) {
+  localStorage.removeItem(key);
+}
+
+export function hasBingo(board: Board): boolean {
+  const n = board.size;
+  const t = board.tiles;
+  // rows
+  for (let r = 0; r < n; r++) {
+    let all = true;
+    for (let c = 0; c < n; c++) if (!t[r * n + c]?.checked) { all = false; break; }
+    if (all) return true;
+  }
+  // cols
+  for (let c = 0; c < n; c++) {
+    let all = true;
+    for (let r = 0; r < n; r++) if (!t[r * n + c]?.checked) { all = false; break; }
+    if (all) return true;
+  }
+  // main diag
+  {
+    let all = true;
+    for (let i = 0; i < n; i++) if (!t[i * (n + 1)]?.checked) { all = false; break; }
+    if (all) return true;
+  }
+  // anti diag
+  {
+    let all = true;
+    for (let i = 1; i <= n; i++) if (!t[i * (n - 1)]?.checked) { all = false; break; }
+    if (all) return true;
+  }
+  return false;
+}
