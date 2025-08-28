@@ -62,8 +62,8 @@ export function createBoard(species: SpeciesItem[], size = 5): Board {
     const center = Math.floor(needed / 2);
     tiles[center] = {
       id: -1,
-      label: 'Grass',
-      image: '/grass.svg',
+      label: 'Human',
+      image: '/human.svg',
       checked: true,
       isFree: true
     };
