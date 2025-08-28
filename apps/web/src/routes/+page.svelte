@@ -19,6 +19,7 @@
   let showBingo = $state(false);
   let gameOver = $state(false);
   let confetti = $state<Array<{ left: number; size: number; delay: number; duration: number; color: string; rotate: number }>>([]);
+  let seed = $state<string>('');
 
   onMount(() => {
     const existing = loadBoard(BOARD_KEY);
@@ -51,7 +52,7 @@
       showBingo = false;
       confetti = [];
       const species = await fetchSpecies('http://localhost:8787', { lat, lng, topN });
-      board = createBoard(species, size);
+      board = createBoard(species, size, seed || undefined);
     } catch (e) {
       error = 'Failed to generate board';
     } finally {
@@ -147,6 +148,13 @@
           <div class="space-y-1">
             <Label for="size">Board size</Label>
             <input id="size" class="border rounded px-2 py-1 w-full" bind:value={size} type="number" min="3" max="6" />
+          </div>
+          <div class="space-y-1 col-span-2">
+            <Label for="seed">Seed (same seed reproduces board)</Label>
+            <div class="flex gap-2">
+              <input id="seed" class="border rounded px-2 py-1 w-full" bind:value={seed} placeholder="optional" />
+              <Button type="button" variant="outline" onclick={() => seed = crypto.getRandomValues(new Uint32Array(1))[0].toString(16)}>Randomize</Button>
+            </div>
           </div>
         </div>
         <div class="flex gap-2">
